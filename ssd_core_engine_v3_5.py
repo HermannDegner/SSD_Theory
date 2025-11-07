@@ -11,16 +11,23 @@ v3.5: 相互変換項 γ により連成系を実現
 dE_direct/dt = α_d(p_d - j_d) + γ_i2d * E_indirect - γ_d2i * E_direct
 dE_indirect/dt = α_i(p_i - j_i) - γ_i2d * E_indirect + γ_d2i * E_direct - β_decay * E_indirect
 
-物理的意味:
+SSD的意味:
 ----------
-- γ_i2d: indirect → direct (思想が行動を引き起こす)
-- γ_d2i: direct → indirect (行動が新しい意味を生む)
-- 循環: 言葉 → 行動 → 新しい言葉 → ...
+- E_direct: 直接行動（物理力）のエネルギー
+- E_indirect: 間接行動（言葉・理念・L5の語り）のエネルギー
+- γ_i2d: indirect → direct (思想が行動を引き起こす / 「跳躍」の経路)
+- γ_d2i: direct → indirect (行動が新しい意味・物語を生む)
+- 循環: 言葉(L5) → 行動(L1) → 新しい言葉(L5) → ...
 
-社会的臨界:
+社会的臨界 (SSD: 構造的跳躍のトリガー):
 ----------
-E_indirect < Θ_critical → γ_i2d *= 10 (相転移)
-"言葉が通じない → 暴力解放"
+E_indirect < Θ_critical → γ_i2d *= 10 (相転移 ＝ SSDにおける「跳躍」)
+
+SSD的解釈:
+- E_indirect (間接圧/上層構造エネルギー) が閾値を下回る
+- ＝「言葉」や「理念」による整合が限界 (整合不能) に達した
+- 結果、システムは「跳躍 (Leap)」し、エネルギーが E_direct (直接行動/物理力) へと相転移する
+- "言葉が通じない → 暴力解放"
 """
 
 import numpy as np
@@ -182,16 +189,19 @@ class SSDCoreEngineV3_5:
         # 7. 社会的臨界チェック (v3.5 新規)
         if self.params.enable_phase_transition:
             if state.E_indirect < self.params.Theta_critical and not state.is_critical:
-                # 臨界突破: "言葉が通じない → 暴力へ"
+                # 臨界突破: SSDにおける「跳躍 (Leap)」
+                # "言葉が通じない → 暴力へ" (整合不能による相転移)
                 self.params.gamma_i2d *= self.params.phase_transition_multiplier
                 state.is_critical = True
                 state.phase_transition_count += 1
             elif state.E_indirect >= self.params.Theta_critical and state.is_critical:
-                # 臨界回復: "暴力 → 言葉へ"
+                # 臨界回復: "暴力 → 言葉へ" (直接行動から間接行動への再整合)
                 self.params.gamma_i2d /= self.params.phase_transition_multiplier
                 state.is_critical = False
                 
         # 8. 連成方程式の積分
+        # dE_direct: 直接行動エネルギーの変化
+        # dE_indirect: 間接行動（意味・物語）エネルギーの変化
         dE_direct = E_direct_production + conversion_i2d - conversion_d2i
         dE_indirect = E_indirect_production - conversion_i2d + conversion_d2i - decay
         
