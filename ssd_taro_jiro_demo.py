@@ -14,7 +14,7 @@ SSD v3.0 統一フレームワーク実演: 太郎と次郎の物語
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from ssd_core_engine_v3 import SSDCoreEngineV3, SSDParametersV3, SSDStateV3, SSDDomain
+from ssd_core_engine_v3_5 import SSDCoreEngineV3_5, SSDParametersV3_5, SSDStateV3_5, SSDDomain
 from dataclasses import dataclass
 from typing import List
 
@@ -29,8 +29,8 @@ class IronBall:
     radius: float    # 半径 [m]
     
     # SSD状態
-    state: SSDStateV3
-    engine: SSDCoreEngineV3
+    state: SSDStateV3_5
+    engine: SSDCoreEngineV3_5
     
     # 心理状態
     anger_level: float = 0.0  # 怒りレベル (0-10)
@@ -53,7 +53,7 @@ class TaroJiroSimulation:
         self.phase_time = 0.0
         
         # SSD parameters - MIXED MODE (直接 + 間接)
-        self.params_indirect = SSDParametersV3(
+        self.params_indirect = SSDParametersV3_5(
             # 間接作用モード (言葉を受け取る)
             use_direct_action=False,
             use_indirect_action=True,
@@ -63,13 +63,11 @@ class TaroJiroSimulation:
             g=1.0,
             alpha=2.0,      # 意味圧の蓄積率
             beta_decay=0.1, # ゆっくり減衰
-            p_c=5.0,
-            beta_heat_mean=0.5,  # 怒りの熱
-            h0=0.3,         # 構造変化しやすい
-            gamma0=0.5
+            gamma_i2d=0.01,  # v3.5: indirect→direct変換率
+            gamma_d2i=0.05,  # v3.5: direct→indirect変換率
         )
         
-        self.params_direct = SSDParametersV3(
+        self.params_direct = SSDParametersV3_5(
             # 直接作用モード (物理的衝突)
             use_direct_action=True,
             use_indirect_action=False,
@@ -79,14 +77,13 @@ class TaroJiroSimulation:
             g=0.3,
             alpha=0.1,
             beta_decay=0.5,
-            p_c=2.0,
-            beta_heat_phys=0.2,
-            h0=0.01
+            gamma_i2d=0.0,  # v3.5: 物理系では変換なし
+            gamma_d2i=0.0,  # v3.5: 物理系では変換なし
         )
         
         # 太郎 (右側、挑発者)
-        state_taro = SSDStateV3(kappa=1.0, E=0.0)
-        engine_taro = SSDCoreEngineV3(self.params_direct)
+        state_taro = SSDStateV3_5(kappa=1.0, E_direct=0.0, E_indirect=0.0)
+        engine_taro = SSDCoreEngineV3_5(self.params_direct)
         engine_taro.domain = SSDDomain.PHYSICS
         
         self.taro = IronBall(
@@ -100,8 +97,8 @@ class TaroJiroSimulation:
         )
         
         # 次郎 (左側、被害者→加害者)
-        state_jiro = SSDStateV3(kappa=1.0, E=0.0, Theta=2.0)
-        engine_jiro = SSDCoreEngineV3(self.params_indirect)  # 最初は間接作用
+        state_jiro = SSDStateV3_5(kappa=1.0, E_direct=0.0, E_indirect=0.0)
+        engine_jiro = SSDCoreEngineV3_5(self.params_indirect)  # 最初は間接作用
         engine_jiro.domain = SSDDomain.SOCIAL
         
         self.jiro = IronBall(
@@ -153,7 +150,7 @@ class TaroJiroSimulation:
             insult_pressure = np.array([5.0, 0.0, 0.0])  # 強い侮辱
             
             # 次郎が言葉を受け取る (間接作用)
-            jumped, P_jump, h = self.jiro.engine.step(
+            self.jiro.state = self.jiro.engine.step(
                 self.jiro.state,
                 p_external=insult_pressure,
                 dt=dt
@@ -178,7 +175,7 @@ class TaroJiroSimulation:
                 self.log_event(f"   E_indirect={self.jiro.state.E_indirect:.3f}J → KE={kinetic_energy:.3f}J に変換")
                 
                 # エンジンを直接作用モードに切り替え
-                self.jiro.engine = SSDCoreEngineV3(self.params_direct)
+                self.jiro.engine = SSDCoreEngineV3_5(self.params_direct)
                 self.jiro.engine.domain = SSDDomain.PHYSICS
         
         # Phase 3: Charging - 次郎が突進 (2-3s)
@@ -211,7 +208,7 @@ class TaroJiroSimulation:
                 contact_force = 1000.0 * abs(v1_before)  # 衝撃力
                 contact_pressure = np.array([contact_force, 0.0, 0.0])
                 
-                self.taro.engine.step(
+                self.taro.state = self.taro.engine.step(
                     self.taro.state,
                     p_external=np.zeros(3),
                     dt=dt,
